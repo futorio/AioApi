@@ -43,6 +43,6 @@ async def hello_handler(request: Request) -> Response:
     return Response(text='bar'*bar_count)
 
 
-app = web.Application()
+app = web.Application(middlewares=[authentication])
 app.add_routes([web.get('/', hello_handler)])
 web.run_app(app)
