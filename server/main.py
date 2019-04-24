@@ -1,3 +1,5 @@
+import asyncio
+
 from aiohttp.web import (Request, Response,
                          HTTPForbidden, HTTPUnprocessableEntity)
 from aiohttp import web
@@ -21,20 +23,26 @@ async def hello_handler(request: Request) -> Response:
     args_schema: dict = {
         'bar_count': {
             'type': 'integer',
+            'coerce': int,
             'required': True,
         },
         'lost_arg': {
-            'type': 'string',
+            'type': 'float',
+            'coerce': float,
             'required': False,
         },
     }
-    validator = Validator()
-    if not validator.validare(request.query, args_schema):
-        raise HTTPUnprocessableEntity()
+    validator = Validator(args_schema)
+    if not validator.validate(dict(request.query)):
+        raise HTTPUnprocessableEntity(text=str(validator.errors))
 
-    return Response(text='bar')
+    bar_count: int = validator.document.get('bar_count')
+    sleep_time: float = validator.document.get('lost_arg')
+
+    await asyncio.sleep(sleep_time)
+    return Response(text='bar'*bar_count)
 
 
-app = web.Application(middlewares=[authentication])
+app = web.Application()
 app.add_routes([web.get('/', hello_handler)])
 web.run_app(app)
