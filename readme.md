@@ -1,1 +1,0 @@
-Test asynchronous api based on aiohttp library
