@@ -7,7 +7,7 @@ routes = web.RouteTableDef()
 
 @middleware
 async def authentication(request: Request, handler) -> Response:
-    if request.headers['auth'] is None:
+    if request.headers.get('auth') is None:
         raise HTTPForbidden()
 
     return await handler(request)
