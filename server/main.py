@@ -11,15 +11,9 @@ from cerberus import Validator
 
 @middleware
 async def response_middleware(request: Request, handler) -> Response:
-    message = dict()
+    message: dict = {'success': True, 'result': None, 'error': None}
     try:
-        response = await handler(request)
-
-        message['success'] = True
-        message['result'] = response if response is not None else 'OK'
-    except web.HTTPException as error:
-        message['success'] = False
-        message['error'] = error.text
+        message['result'] = await handler(request)
     except Exception:
         traceback_message = traceback.format_exc()
 
@@ -45,7 +39,7 @@ async def handler(request: Request) -> str:
     }
     validator = Validator(args_schema)
     if not validator.validate(dict(request.query)):
-        raise HTTPUnprocessableEntity(text=str(validator.errors))
+        raise HTTPUnprocessableEntity()
 
     await asyncio.sleep(1.0)
     return 'bar'
