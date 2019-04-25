@@ -1,48 +1,61 @@
+import traceback
 import asyncio
 
 from aiohttp.web import (Request, Response,
-                         HTTPForbidden, HTTPUnprocessableEntity)
+                         HTTPUnauthorized, HTTPUnprocessableEntity, )
 from aiohttp import web
 from aiohttp.web import middleware
 
 from cerberus import Validator
 
-routes = web.RouteTableDef()
+
+@middleware
+async def response_middleware(request: Request, handler) -> Response:
+    message = dict()
+    try:
+        response = await handler(request)
+
+        message['success'] = True
+        message['result'] = response if response is not None else 'OK'
+    except web.HTTPException as error:
+        message['success'] = False
+        message['error'] = error.text
+    except Exception:
+        traceback_message = traceback.format_exc()
+
+        message['success'] = False
+        message['error'] = traceback_message
+    finally:
+        return web.json_response(message)
 
 
 @middleware
-async def authentication(request: Request, handler) -> Response:
+async def auth_middleware(request: Request, handler) -> str:
     if request.headers.get('auth') is None:
-        raise HTTPForbidden()
+        raise HTTPUnauthorized()
 
     return await handler(request)
 
 
-@routes.get('/')
-async def hello_handler(request: Request) -> Response:
+async def handler(request: Request) -> str:
     args_schema: dict = {
-        'bar_count': {
-            'type': 'integer',
-            'coerce': int,
-            'required': True,
-        },
-        'lost_arg': {
-            'type': 'float',
-            'coerce': float,
-            'required': False,
-        },
+        'foo': {'type': 'integer', 'coerce': int, 'required': True, },
+        'bar': {'type': 'float', 'coerce': float, 'required': False,
+                'default': 0.0, },
     }
     validator = Validator(args_schema)
     if not validator.validate(dict(request.query)):
         raise HTTPUnprocessableEntity(text=str(validator.errors))
 
-    bar_count: int = validator.document.get('bar_count')
-    sleep_time: float = validator.document.get('lost_arg')
-
-    await asyncio.sleep(sleep_time)
-    return Response(text='bar'*bar_count)
+    await asyncio.sleep(1.0)
+    return 'bar'
 
 
-app = web.Application(middlewares=[authentication])
-app.add_routes([web.get('/', hello_handler)])
-web.run_app(app)
+def main() -> None:
+    app = web.Application(middlewares=[response_middleware, auth_middleware])
+    app.add_routes([web.get('/', handler)])
+    web.run_app(app)
+
+
+if __name__ == '__main__':
+    main()
