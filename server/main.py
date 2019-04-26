@@ -14,16 +14,24 @@ from cerberus import Validator
 
 AUTH_URL: str = 'http://auth.pressindex.int/v2/auth/signin'
 token_storage: set = set()
+public_api_paths = ['/auth']
 
 
-async def get_auth_token(data: bytes) -> str:
-    async with aiohttp.ClientSession() as session:
-        async with session.post(AUTH_URL, data=data) as response:
-            response_data = await response.json()
-            if 'access_token' in response_data:
-                return response_data['access_token']
-            else:
-                raise HTTPBadRequest()
+async def create_client_session(app):
+    app['client_session'] = aiohttp.ClientSession()
+
+
+async def close_client_session(app):
+    await app['client_session'].close()
+
+
+async def get_auth_token(data: bytes, session) -> str:
+    async with session.post(AUTH_URL, data=data) as response:
+        response_data = await response.json()
+        if 'access_token' in response_data:
+            return response_data['access_token']
+        else:
+            raise HTTPBadRequest()
 
 
 def token_is_valid(token: str) -> bool:
@@ -51,7 +59,7 @@ async def response_middleware(request: Request, handler) -> Response:
 async def auth_middleware(request: Request, handler) -> str:
     auth_token = request.headers.get('auth')
 
-    if request.path == '/auth' or token_is_valid(auth_token):
+    if request.path in public_api_paths or token_is_valid(auth_token):
         return await handler(request)
     else:
         raise HTTPUnauthorized()
@@ -63,7 +71,8 @@ async def get_token_handler(request: Request) -> str:
     else:
         raise HTTPBadRequest()
 
-    auth_token = await get_auth_token(post_body)
+    client_session = request.app['client_session']
+    auth_token = await get_auth_token(post_body, client_session)
     token_storage.add(auth_token)
     return auth_token
 
@@ -86,6 +95,11 @@ def main() -> None:
     app = web.Application(middlewares=[response_middleware, auth_middleware])
     app.add_routes([web.get('/', handler),
                     web.post('/auth', get_token_handler)])
+
+    app.on_startup.append(create_client_session)
+    app.on_cleanup.append(close_client_session)
+    app.on_shutdown.append(close_client_session)
+
     web.run_app(app)
 
 
