@@ -12,15 +12,17 @@ from cerberus import Validator
 @middleware
 async def response_middleware(request: Request, handler) -> Response:
     message: dict = {'success': True, 'result': None, 'error': None}
+    status_code = 200
     try:
         message['result'] = await handler(request)
     except Exception:
         traceback_message = traceback.format_exc()
 
+        status_code = 500
         message['success'] = False
         message['error'] = traceback_message
     finally:
-        return web.json_response(message)
+        return web.json_response(message, status=status_code)
 
 
 @middleware
