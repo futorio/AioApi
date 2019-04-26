@@ -1,12 +1,34 @@
 import traceback
 import asyncio
 
+import aiohttp
+
 from aiohttp.web import (Request, Response,
-                         HTTPUnauthorized, HTTPUnprocessableEntity, )
+                         HTTPUnauthorized, HTTPUnprocessableEntity,
+                         HTTPBadRequest,)
 from aiohttp import web
 from aiohttp.web import middleware
 
 from cerberus import Validator
+
+
+AUTH_URL: str = 'http://auth.pressindex.int/v2/auth/signin'
+token_storage: set = set()
+
+
+async def get_auth_token(data: bytes) -> str:
+    async with aiohttp.ClientSession() as session:
+        async with session.post(AUTH_URL, data=data) as response:
+            response_data = await response.json()
+            if 'access_token' in response_data:
+                return response_data['access_token']
+            else:
+                raise HTTPBadRequest()
+
+
+def token_is_valid(token: str) -> bool:
+    """Заглушка валидации токена"""
+    return token in token_storage
 
 
 @middleware
@@ -27,10 +49,23 @@ async def response_middleware(request: Request, handler) -> Response:
 
 @middleware
 async def auth_middleware(request: Request, handler) -> str:
-    if request.headers.get('auth') is None:
+    auth_token = request.headers.get('auth')
+
+    if request.path == '/auth' or token_is_valid(auth_token):
+        return await handler(request)
+    else:
         raise HTTPUnauthorized()
 
-    return await handler(request)
+
+async def get_token_handler(request: Request) -> str:
+    if request.can_read_body:
+        post_body = await request.read()
+    else:
+        raise HTTPBadRequest()
+
+    auth_token = await get_auth_token(post_body)
+    token_storage.add(auth_token)
+    return auth_token
 
 
 async def handler(request: Request) -> str:
@@ -49,7 +84,8 @@ async def handler(request: Request) -> str:
 
 def main() -> None:
     app = web.Application(middlewares=[response_middleware, auth_middleware])
-    app.add_routes([web.get('/', handler)])
+    app.add_routes([web.get('/', handler),
+                    web.post('/auth', get_token_handler)])
     web.run_app(app)
 
 
