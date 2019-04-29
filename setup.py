@@ -8,7 +8,7 @@ setup(
     include_package_data=True,
     entry_points={
         'console_scripts': [
-            'aio_api_start = server:start_server'
+            'aio_api_start = app.server:start_server'
         ],
     },
     install_requires=[
