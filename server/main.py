@@ -92,7 +92,7 @@ async def handler(request: Request) -> str:
     return 'bar'
 
 
-def main() -> None:
+def start_server() -> None:
     app = web.Application(middlewares=[response_middleware, auth_middleware])
     app.add_routes([web.get('/', handler),
                     web.post('/auth', get_token_handler)])
@@ -105,4 +105,4 @@ def main() -> None:
 
 
 if __name__ == '__main__':
-    main()
+    start_server()
