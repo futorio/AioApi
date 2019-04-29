@@ -3,6 +3,7 @@ import asyncio
 
 import aiohttp
 
+from aiohttp import ClientSession
 from aiohttp.web import (Request, Response,
                          HTTPUnauthorized, HTTPUnprocessableEntity,
                          HTTPBadRequest,)
@@ -25,7 +26,7 @@ async def close_client_session(app):
     await app['client_session'].close()
 
 
-async def get_auth_token(data: bytes, session) -> str:
+async def get_auth_token(data: bytes, session: ClientSession) -> str:
     async with session.post(AUTH_URL, data=data) as response:
         response_data = await response.json()
         if 'access_token' in response_data:
