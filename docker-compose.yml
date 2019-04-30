@@ -1,6 +1,6 @@
 version: '3'
 services:
-  server:
+  telegram_stat_api:
     build: .
     ports:
       - "8080:8080"
