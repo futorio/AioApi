@@ -18,14 +18,6 @@ token_storage: set = set()
 public_api_paths = ['/auth']
 
 
-async def create_client_session(app):
-    app['client_session'] = aiohttp.ClientSession()
-
-
-async def close_client_session(app):
-    await app['client_session'].close()
-
-
 async def get_auth_token(data: bytes, session: ClientSession) -> str:
     async with session.post(AUTH_URL, data=data) as response:
         response_data = await response.json()
@@ -92,17 +84,21 @@ async def handler(request: Request) -> str:
     return 'bar'
 
 
-def start_server() -> None:
+def main() -> None:
+    async def create_client_session(app):
+        app['client_session'] = ClientSession()
+
+    async def close_client_session(app):
+        await app['client_session'].close()
+
     app = web.Application(middlewares=[response_middleware, auth_middleware])
     app.add_routes([web.get('/', handler),
                     web.post('/auth', get_token_handler)])
 
     app.on_startup.append(create_client_session)
-    app.on_cleanup.append(close_client_session)
     app.on_shutdown.append(close_client_session)
-
     web.run_app(app)
 
 
 if __name__ == '__main__':
-    start_server()
+    main()

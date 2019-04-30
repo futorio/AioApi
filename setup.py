@@ -8,7 +8,7 @@ setup(
     include_package_data=True,
     entry_points={
         'console_scripts': [
-            'aio_api_start = app.server:start_server'
+            'telegram_stat_api = app.server:main'
         ],
     },
     install_requires=[
