@@ -1,8 +1,6 @@
 import traceback
 import asyncio
 
-import aiohttp
-
 from aiohttp import ClientSession
 from aiohttp.web import (Request, Response,
                          HTTPUnauthorized, HTTPUnprocessableEntity,
@@ -13,8 +11,8 @@ from aiohttp.web import middleware
 from cerberus import Validator
 
 
-AUTH_URL: str = 'http://auth.pressindex.int/v2/auth/signin'
-token_storage: set = set()
+AUTH_URL = 'http://auth.pressindex.int/v2/auth/signin'
+token_storage = set()
 public_api_paths = ['/auth']
 
 
@@ -34,7 +32,7 @@ def token_is_valid(token: str) -> bool:
 
 @middleware
 async def response_middleware(request: Request, handler) -> Response:
-    message: dict = {'success': True, 'result': None, 'error': None}
+    message = {'success': True, 'result': None, 'error': None}
     status_code = 200
     try:
         message['result'] = await handler(request)
@@ -71,7 +69,7 @@ async def get_token_handler(request: Request) -> str:
 
 
 async def handler(request: Request) -> str:
-    args_schema: dict = {
+    args_schema = {
         'foo': {'type': 'integer', 'coerce': int, 'required': True, },
         'bar': {'type': 'float', 'coerce': float, 'required': False,
                 'default': 0.0, },
@@ -85,18 +83,16 @@ async def handler(request: Request) -> str:
 
 
 def main() -> None:
-    async def create_client_session(app):
+    async def manage_client_session(app):
         app['client_session'] = ClientSession()
-
-    async def close_client_session(app):
+        yield
         await app['client_session'].close()
 
     app = web.Application(middlewares=[response_middleware, auth_middleware])
     app.add_routes([web.get('/', handler),
                     web.post('/auth', get_token_handler)])
 
-    app.on_startup.append(create_client_session)
-    app.on_shutdown.append(close_client_session)
+    app.cleanup_ctx.append(manage_client_session)
     web.run_app(app)
 
 
