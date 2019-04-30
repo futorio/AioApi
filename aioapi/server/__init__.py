@@ -1,1 +1,1 @@
-from .main import start_server
+from .main import main
