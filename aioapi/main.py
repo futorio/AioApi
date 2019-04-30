@@ -68,7 +68,7 @@ async def get_token_handler(request: Request) -> str:
     return auth_token
 
 
-async def handler(request: Request) -> str:
+async def default_handler(request: Request) -> str:
     args_schema = {
         'foo': {'type': 'integer', 'coerce': int, 'required': True, },
         'bar': {'type': 'float', 'coerce': float, 'required': False,
@@ -82,6 +82,16 @@ async def handler(request: Request) -> str:
     return 'bar'
 
 
+async def post_views_handler(request: Request):
+    args_schema = {
+        'id': {'type': 'string', 'coerce': str, 'required': True},
+        'dtfrom': {'type': 'float', 'coerce': float, 'required': False,
+                   'default': 0.0},
+        'dtto': {'type': 'float', 'coerce': float, 'required': False,
+                 'default': float('inf')},
+    }
+
+
 def main() -> None:
     async def manage_client_session(app):
         app['client_session'] = ClientSession()
@@ -89,7 +99,7 @@ def main() -> None:
         await app['client_session'].close()
 
     app = web.Application(middlewares=[response_middleware, auth_middleware])
-    app.add_routes([web.get('/', handler),
+    app.add_routes([web.get('/', default_handler),
                     web.post('/auth', get_token_handler)])
 
     app.cleanup_ctx.append(manage_client_session)
